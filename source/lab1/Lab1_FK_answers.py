@@ -35,6 +35,8 @@ def part1_calculate_T_pose(bvh_file_path):
     joint_name = bvh_data.get_joint_names()
     joint_parent = bvh_data.get_parents()
     joint_offset = bvh_data.get_offset()
+    for idx, i in enumerate(zip(joint_name, joint_offset, joint_parent)):
+        print(idx, i)
     return joint_name, joint_parent, joint_offset
 
 
@@ -50,8 +52,28 @@ def part2_forward_kinematics(joint_name, joint_parent, joint_offset, motion_data
         1. joint_orientations的四元数顺序为(x, y, z, w)
         2. from_euler时注意使用大写的XYZ
     """
-    joint_positions = None
-    joint_orientations = None
+    assert(frame_id < motion_data.shape[0])
+    frame_motion_data = motion_data[frame_id].reshape(-1, 3)
+    quats = R.from_euler('XYZ', frame_motion_data[1:], degrees=True).as_quat()
+
+    # 0. 根节点可以先设置
+    joint_positions = [frame_motion_data[0]]
+    joint_orientations = [quats[0]]
+    quat_index = 1
+
+    for idx, name in enumerate(joint_name):
+        if name.endswith("_end"):
+            quats = np.insert(quats, idx, [0,0,0,1], axis=0)
+
+    # 1. 计算每个节点的orientation和position
+    for i in range(1, len(joint_parent)):
+        parent_Q = R.from_quat(joint_orientations[joint_parent[i]])
+        # 计算节点Q与r
+        rotation = parent_Q * R.from_quat(quats[i])
+        joint_orientations.append(rotation.as_quat())
+        joint_positions.append(joint_positions[joint_parent[i]] + parent_Q.apply(joint_offset[i]))
+
+    joint_positions, joint_orientations = np.array(joint_positions), np.array(joint_orientations)
     return joint_positions, joint_orientations
 
 
