@@ -87,5 +87,31 @@ def part3_retarget_func(T_pose_bvh_path, A_pose_bvh_path):
         两个bvh的joint name顺序可能不一致哦(
         as_euler时也需要大写的XYZ
     """
-    motion_data = None
+    T_name, T_parent, T_offset = part1_calculate_T_pose(T_pose_bvh_path)
+    A_name, A_parent, A_offset = part1_calculate_T_pose(A_pose_bvh_path)
+
+    A_motion = load_motion_data(A_pose_bvh_path)
+    A_motion_rotation = A_motion[:, 3:]
+
+    T_name_without_end = [name for name in T_name if not name.endswith("_end")]
+    A_name_without_end = [name for name in A_name if not name.endswith("_end")]
+
+    motion_dict = {}
+    motion_data = np.zeros(A_motion.shape)
+
+    for idx, name in enumerate(A_name_without_end):
+        motion_dict[name] = A_motion_rotation[:, idx*3:idx*3+3]
+
+    for idx, name in enumerate(T_name_without_end):
+        print(motion_dict[name].shape)
+        if name.lower() == "lshoulder":
+            motion_dict[name][:, 2] += -45
+        elif name.lower() == "rshoulder":
+            motion_dict[name][:, 2] += 45
+
+        motion_data[:, idx*3:idx*3+3] = motion_dict[name]
+
+
+    motion_data = np.concatenate([A_motion[:,:3], motion_data], axis=1)
+    print(motion_data)
     return motion_data
